@@ -208,6 +208,7 @@ int main(int argc, char ** argv)
         });
     }
 
+    
     // Print graph statistics
     g->print_distribution();
     if (args.check_graph) {
@@ -257,7 +258,15 @@ int main(int argc, char ** argv)
         LOG("Algorithm '%s' not implemented!\n", args.algorithm);
         exit(1);
     }
+    
+    g->print_graph_base();
+    //printf("$$$$$$$$$$$ DUMP\n"); fflush(stdout);
+    //g->dump();
+    printf("===== hybrid_bfs_main: Before make shallow\n"); fflush(stdout);
     auto bfs = emu::make_repl_shallow<hybrid_bfs>(*g);
+    printf("===== After make shallow\n"); fflush(stdout);
+    exit(0); // skk
+
 
     // Run trials
     long num_edges_traversed_all_trials = 0;

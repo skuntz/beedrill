@@ -48,7 +48,7 @@ public:
         , vertex_id_(num_vertices)
         , vertex_out_degree_(num_vertices)
         , vertex_out_neighbors_(num_vertices)
-    {}
+    { printf(" graph_base: base constructor\n"); fflush(stdout);}
 
     // Shallow copy constructor
     graph_base(const graph_base &other, emu::shallow_copy shallow)
@@ -58,7 +58,77 @@ public:
         , vertex_id_(other.vertex_id_, shallow)
         , vertex_out_degree_(other.vertex_out_degree_, shallow)
         , vertex_out_neighbors_(other.vertex_out_neighbors_, shallow)
-    {}
+    {
+	printf("Graph Base shallow copy constructor\n"); fflush(stdout);
+	// print replicated values to make sure they are all set
+    }
+
+    void print_graph_base() {
+
+	long n_msps = NODELETS();
+	printf("\nPrint graph base @ %p\n", this); fflush(stdout);
+	printf("#vertices = %ld, num_edges = %ld\n", num_vertices_.get(), num_edges_.get()); fflush(stdout);
+	for (long i=0; i < n_msps; ++i) {
+	    printf("  MSP[%ld]: #vertices = %ld, #edges = %ld\n",
+		   i, num_vertices_.get_nth(i), num_edges_.get_nth(i));
+	    fflush(stdout);
+	}
+	printf("vertex_id @%p: begin @%p, end@%p, front %p, back %p\n",
+	       vertex_id_.data(), vertex_id_.begin(), vertex_id_.end(),
+	       vertex_id_.front(), vertex_id_.back());
+	fflush(stdout);
+	printf("vertex_out_degree @ %p: begin @%p, end@%p, front %p, back %p\n",
+	       vertex_out_degree_.data(), vertex_out_degree_.begin(), vertex_out_degree_.end(),
+	       vertex_out_degree_.front(), vertex_out_degree_.back());
+	fflush(stdout);
+	printf("vertex_out_neighbors @ %p: begin @%p, end@%p, front %p, back %p\n",
+	       vertex_out_neighbors_.data(), vertex_out_neighbors_.begin(),
+	       vertex_out_neighbors_.end(), vertex_out_neighbors_.front(),
+	       vertex_out_neighbors_.back());
+	fflush(stdout);
+
+	long child = 3046;
+	long degree = out_degree(child);
+	auto * begin = out_edges_begin(child);
+	auto * end = out_edges_end(child);
+	
+	printf("**Child %ld: out_degree %ld, out_edges_begin %p, out_edges_end %p\n",
+	       child, degree, begin, end);
+	fflush(stdout);
+	for (long i = 0; i<degree; ++i) {
+	    printf("  edge[%ld] = %ld (0x%lx) @%p\n", i, *begin, *begin, begin);
+	    fflush(stdout);
+	    begin++;
+	}
+	
+	child = 3054;
+	degree = out_degree(child);
+	begin = out_edges_begin(child);
+	end = out_edges_end(child);
+	printf("**Child %ld: out_degree %ld, out_edges_begin %p, out_edges_end %p\n",
+		   child, degree, begin, end);
+	fflush(stdout);
+	for (long i = 0; i<degree; ++i) {
+	printf("  edge[%ld] = %ld  (0x%lx) @%p\n", i, *begin, *begin, begin);
+	    fflush(stdout);
+	    begin++;
+	}
+       
+	child = 3062;
+	degree = out_degree(child);
+	begin = out_edges_begin(child);
+	end = out_edges_end(child);
+	printf("**Child %ld: out_degree %ld, out_edges_begin %p, out_edges_end %p\n",
+		   child, degree, begin, end);
+	fflush(stdout);
+	for (long i = 0; i<degree; ++i) {
+	    printf("  edge[%ld] = %ld  (0x%lx) @%p\n", i, *begin, *begin, begin);
+	    fflush(stdout);
+	    begin++;
+	}
+	fflush(stdout);
+	
+    }
 
     graph_base(const graph_base &other) = delete;
 
@@ -138,7 +208,8 @@ public:
     {
         for (long src = 0; src < num_vertices_; ++src) {
             if (vertex_out_degree_[src] > 0) {
-                LOG("%li ->", src);
+                LOG("%li (vout @%p, vneigh @%p)->", src,
+		    &(vertex_out_degree_[src]), &(vertex_out_neighbors_[src]));
                 auto edges_begin = vertex_out_neighbors_[src];
                 auto edges_end = edges_begin + vertex_out_degree_[src];
                 for (auto e = edges_begin; e < edges_end; ++e) { LOG(" %li", e->dst); }
@@ -265,6 +336,10 @@ public:
     template<class Policy, class Function>
     void for_each_vertex(Policy policy, Function worker)
     {
+	// Issue is here. Looks to be at the end of the 
+	//printf("In this version of for each vertex\n"); fflush(stdout);
+	printf("vertex_id_.begin() %p\n", vertex_id_.begin()); fflush(stdout);
+	printf("vertex_id_.end() %p\n", vertex_id_.end()); fflush(stdout);
         emu::parallel::for_each(
             policy, vertex_id_.begin(), vertex_id_.end(), worker
         );
@@ -293,8 +368,14 @@ public:
     template<class Policy, class Function>
     edge_iterator find_out_edge_if(Policy policy, long src, Function worker)
     {
+	// skk Issue with bfs is here. Getting bad value for iterator (parent)
+	long tid = THREAD_ID();
+	if (tid == 2266) {
+	    printf("Out edges: src %ld,  begin %p, out edges end %p\n", src, out_edges_begin(src), out_edges_end(src));
+	    fflush(stdout);
+	}
         return emu::parallel::find_if(
-            policy, out_edges_begin(src), out_edges_end(src), worker
+	    policy, out_edges_begin(src), out_edges_end(src), worker
         );
     }
 

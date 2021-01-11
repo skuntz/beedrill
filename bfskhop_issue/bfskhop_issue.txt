@@ -1,0 +1,160 @@
+The current issue it that the edge array appears to be getting overwritten by other data during the
+make_repl_shallow. This does not happen in the original arria, only with the new ring.
+
+Background
+
+The graph is represented in graph_base.h as follows:
+
+template<class Edge>
+class graph_base {
+protected:
+    // Total number of vertices in the graph (max vertex ID + 1)
+    emu::repl<long> num_vertices_;
+    // Total number of edges in the graph
+    emu::repl<long> num_edges_;
+
+    // Distributed vertex array
+    // ID of each vertex
+    emu::striped_array<long> vertex_id_;
+    // number of neighbors for this vertex (on all nodelets)
+    emu::striped_array<long> vertex_out_degree_;
+    // Pointer to local edge array (light vertices only)
+    // OR replicated edge block pointer (heavy vertices only)
+    emu::striped_array<Edge *> vertex_out_neighbors_;
+
+    // Pointer to chunk of memory on each nodelet for storing edges
+    emu::repl<emu::repl_array<Edge> *> edge_storage_;
+    // Total number of edges stored on each nodelet
+    emu::repl<long> num_local_edges_;
+    // Pointer to un-reserved edge storage in local stripe
+    Edge *next_edge_storage_;
+
+
+Each of these uses a replicated pointer to the data structure. The  vertex_id and
+vertex_out_degree are striped 1Dmalloc arrays. The vertex_out_neighbors is a striped 1Dmalloc
+array of pointers to edge storage.
+
+template<typename T>
+class striped_array
+{
+    static_assert(sizeof(T) == 8, "emu_striped_array can only hold 64-bit data types");
+    using self_type = striped_array;
+
+private:
+    repl<T*> ptr_;
+    repl<long> n_;
+
+
+In hybrid_bfs_main.cc the graph is built and when I print it, the results look good. Then there
+is a "make_repl_shallow" that makes a special shallow pointer to the data structures, including the
+graph that was created.
+
+class hybrid_bfs {
+private:
+    emu::repl<graph*> g_;
+    // For each vertex, parent in the BFS tree.
+    emu::striped_array<long> parent_;
+    // Temporary copy of parent array
+    emu::striped_array<long> new_parent_;
+    // Used to store vertices to visit in the next frontier
+    sliding_queue queue_;
+    // Tracks the sum of the degrees of vertices in the frontier
+    // Declared here to avoid re-allocating before each step
+    emu::repl<long> scout_count_;
+    emu::repl<long> awake_count_;
+
+    worklist<graph::edge_type> worklist_;
+
+
+When I print after this, I can see that some of my edge list has been overwritten, by what appears
+to be striped array info (ptr & n).
+
+Before make_repl_shallow:
+**Child 3046: out_degree 0, out_edges_begin 0, out_edges_end 0
+**Child 3054: out_degree 18, out_edges_begin 0x18000064015a790, out_edges_end 0x18000064015a820
+  edge[0] = 1829  (0x725) @0x18000064015a790
+  edge[1] = 2427  (0x97b) @0x18000064015a798
+  edge[2] = 3183  (0xc6f) @0x18000064015a7a0
+  edge[3] = 203  (0xcb) @0x18000064015a7a8
+  edge[4] = 59  (0x3b) @0x18000064015a7b0
+  edge[5] = 2557  (0x9fd) @0x18000064015a7b8
+  edge[6] = 3019  (0xbcb) @0x18000064015a7c0
+  edge[7] = 36  (0x24) @0x18000064015a7c8
+  edge[8] = 369  (0x171) @0x18000064015a7d0
+  edge[9] = 3785  (0xec9) @0x18000064015a7d8
+  edge[10] = 2889  (0xb49) @0x18000064015a7e0
+  edge[11] = 2554  (0x9fa) @0x18000064015a7e8
+  edge[12] = 1089  (0x441) @0x18000064015a7f0
+  edge[13] = 2177  (0x881) @0x18000064015a7f8
+  edge[14] = 4018  (0xfb2) @0x18000064015a800
+  edge[15] = 4  (0x4) @0x18000064015a808
+  edge[16] = 3776  (0xec0) @0x18000064015a810
+  edge[17] = 1291  (0x50b) @0x18000064015a818
+**Child 3062: out_degree 3, out_edges_begin 0x18000064015a820, out_edges_end 0x18000064015a838
+  edge[0] = 1638  (0x666) @0x18000064015a820
+  edge[1] = 2209  (0x8a1) @0x18000064015a828
+  edge[2] = 3367  (0xd27) @0x18000064015a830
+
+After:
+**Child 3046: out_degree 0, out_edges_begin 0, out_edges_end 0
+**Child 3054: out_degree 18, out_edges_begin 0x18000064015a790, out_edges_end 0x18000064015a820
+  edge[0] = 4096  (0x1000) @0x18000064015a790
+  edge[1] = 2427  (0x97b) @0x18000064015a798
+  edge[2] = 3183  (0xc6f) @0x18000064015a7a0
+  edge[3] = 203  (0xcb) @0x18000064015a7a8
+  edge[4] = 59  (0x3b) @0x18000064015a7b0
+  edge[5] = 36028798094133328  (0x8000004015c850) @0x18000064015a7b8
+  edge[6] = 512  (0x200) @0x18000064015a7c0
+  edge[7] = 36028798094137432  (0x8000004015d858) @0x18000064015a7c8
+  edge[8] = 512  (0x200) @0x18000064015a7d0
+  edge[9] = 3785  (0xec9) @0x18000064015a7d8
+  edge[10] = 2889  (0xb49) @0x18000064015a7e0
+  edge[11] = 0  (0x0) @0x18000064015a7e8
+  edge[12] = 0  (0x0) @0x18000064015a7f0
+  edge[13] = 2177  (0x881) @0x18000064015a7f8
+  edge[14] = 180143993696240384  (0x280000200af4300) @0x18000064015a800
+  edge[15] = 4096  (0x1000) @0x18000064015a808
+  edge[16] = 180143993696273216  (0x280000200afc340) @0x18000064015a810
+  edge[17] = 4096  (0x1000) @0x18000064015a818
+**Child 3062: out_degree 3, out_edges_begin 0x18000064015a820, out_edges_end 0x18000064015a838
+  edge[0] = 180143993696306048  (0x280000200b04380) @0x18000064015a820  ----> ptr
+  edge[1] = 4096  (0x1000) @0x18000064015a828	    			----> n
+  edge[2] = 3367  (0xd27) @0x18000064015a830
+
+I can see that this pointer is getting allocated and written as a part of the striped array
+constructor but don't understand why/how it is getting allocated in the middle of the edge list
+
+explicit striped array constructor: ptr 0x280000200afc340, n 4096
+  alloc storage: before malloc1dlong
+  alloc storage: after malloc1dlong
+  allocate storage: ptr @ 0x280000200b04380			<---------
+  allocate storage: ptr[0] = 108086398574275456, ptr[1] = 0
+  repl<T> wrapper constructor
+  repl<T> op=: this 0x8000004015a820 rhs 0x280000200b04380
+      prim get_nth[0]: this 0x8000004015a820, p 0x18000004015a820
+      prim get_nth[1]: this 0x8000004015a820, p 0x18000024015a820
+      prim get_nth[2]: this 0x8000004015a820, p 0x18000044015a820
+      prim get_nth[3]: this 0x8000004015a820, p 0x18000064015a820
+      prim get_nth[4]: this 0x8000004015a820, p 0x18000084015a820
+      prim get_nth[5]: this 0x8000004015a820, p 0x180000a4015a820
+      prim get_nth[6]: this 0x8000004015a820, p 0x180000c4015a820
+      prim get_nth[7]: this 0x8000004015a820, p 0x180000e4015a820
+  repl<T> wrapper constructor
+  repl<T> op=: this 0x8000004015a828 rhs 0x1000
+      prim get_nth[0]: this 0x8000004015a828, p 0x18000004015a828
+      prim get_nth[1]: this 0x8000004015a828, p 0x18000024015a828
+      prim get_nth[2]: this 0x8000004015a828, p 0x18000044015a828
+      prim get_nth[3]: this 0x8000004015a828, p 0x18000064015a828
+      prim get_nth[4]: this 0x8000004015a828, p 0x18000084015a828
+      prim get_nth[5]: this 0x8000004015a828, p 0x180000a4015a828
+      prim get_nth[6]: this 0x8000004015a828, p 0x180000c4015a828
+      prim get_nth[7]: this 0x8000004015a828, p 0x180000e4015a828
+    val @0x8000004015a820 = 180143993696306048
+    val @0x8000004015a828 = 4096
+explicit striped array constructor: ptr 0x280000200b04380, n 4096
+hybrid_bfs constructor
+
+This happens in the hybrid_bfs constructor.
+How could it allocate in the middle of the edge list?
+1) The allocation pointers are somehow off
+2) The edge list is actually where it shouldn't be

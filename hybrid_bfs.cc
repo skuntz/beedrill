@@ -16,7 +16,13 @@ hybrid_bfs::hybrid_bfs(graph & g)
 , awake_count_(0L)
 , worklist_(g.num_vertices())
 {
+    printf("hybrid_bfs constructor\n"); fflush(stdout);
     // Force ack controller singleton to initialize itself
+    g.print_graph_base();
+    //printf("!!!!!!!!!!!!! DUMP\n");
+    //g.dump();
+    //fflush(stdout);
+    //g_->print_graph_base();
     ack_control_init();
 }
 
@@ -29,7 +35,9 @@ hybrid_bfs::hybrid_bfs(const hybrid_bfs& other, emu::shallow_copy shallow)
 , scout_count_(other.scout_count_)
 , awake_count_(other.awake_count_)
 , worklist_(other.worklist_, shallow)
-{}
+{
+    printf("hybrid_bfs shallow copy constructor\n"); fflush(stdout);
+}
 
 /**
  * Top-down BFS step ("migrating threads" variant)
@@ -108,26 +116,83 @@ hybrid_bfs::top_down_step_with_migrating_threads()
  * If a parent is found, put the child in the bitmap for the next frontier
  * Returns the number of vertices that found a parent (size of next frontier)
 */
-long
-hybrid_bfs::bottom_up_step()
-{
-    awake_count_ = 0;
-
-    // For all vertices without a parent...
-    g_->for_each_vertex(fixed, [this](long child) {
-        if (parent_[child] >= 0) { return; }
-        // Look for neighbors who are in the frontier
-        g_->find_out_edge_if(unroll, child, [this, child](long parent) {
+/*
+long temporary_fcn(long child) {
+    // Look for neighbors who are in the frontier
+    g_->find_out_edge_if(unroll, child, [this, child](long parent) {
+	    //printf("    in out edge\n"); fflush(stdout);
             // If the neighbor is in the frontier...
             if (parent_[parent] >= 0) {
+		printf("    p[p]: parent @%p = %ld\n", &parent, parent); fflush(stdout);
+		printf("    new_parent_ @%p, child %ld\n"); fflush(stdout);
                 // Claim as a parent
                 new_parent_[child] = parent;
+		
                 // No need to keep searching
                 return true;
             } else return false;
         });
+}
+*/
+long
+hybrid_bfs::bottom_up_step()
+{
+    awake_count_ = 0;
+    //printf("Bottom up step\n"); fflush(stdout);
+    // issue seems to be in this loop
+ 
+
+    //printf("vertices_begin %p\n", g_->vertices_begin()); fflush(stdout);
+    //printf("vertices_end %p\n", g_->vertices_end()); fflush(stdout);
+    // For all vertices without a parent...
+    g_->for_each_vertex(fixed, [this](long child) {
+	    
+	    //printf("  child @%p = %ld\n", &child, child); fflush(stdout);
+	    //printf("  child %ld\n", child); fflush(stdout);
+	   
+	    
+        if (parent_[child] >= 0) { return; }
+	
+	//printf("  after parent check\n"); fflush(stdout);
+	if (child == 3046 || child == 3054 || child == 3062) {
+	    printf("**Child %ld: out_degree %ld, out_edges_begin %p, out_edges_end %p\n",
+		   child, g_->out_degree(child),
+		   g_->out_edges_begin(child), g_->out_edges_end(child));
+	    fflush(stdout);
+	}
+		
+        // Look for neighbors who are in the frontier
+        g_->find_out_edge_if(unroll, child, [this, child](long parent) {
+		//g_->find_out_edge_if(sequential, child, [this, child](long parent) {
+		//printf("    in out edge\n"); fflush(stdout);
+            // If the neighbor is in the frontier...
+		long tid = THREAD_ID();
+		if (tid == 2266) {
+		    printf("  child = %ld, parent = %ld (0x%lx)\n", child, parent, parent);
+		    fflush(stdout);
+		}
+            if (parent_[parent] >= 0) {
+		#if 0
+		long tid = THREAD_ID();
+		if (tid == 2266) {
+		    printf("    p[p]: parent @%p = %ld\n", &parent, parent); fflush(stdout);
+		    printf("    new_parent_ @%p, child 0x%lx\n", &new_parent_, child); fflush(stdout);
+		    printf("    new_parent_[child] @%p\n", &(new_parent_[child])); fflush(stdout);
+		    printf("    new_parent_[child] = %ld\n", new_parent_[child]); fflush(stdout);
+		}
+		#endif
+                // Claim as a parent
+                new_parent_[child] = parent;
+		//printf("    after assign new_parent_[child]\n"); 
+		
+                // No need to keep searching
+                return true;
+            } else return false;
+        });
+       
     });
 
+    //printf(" part 2\n"); fflush(stdout);
     // Add to the queue all vertices that didn't have a parent before
     g_->for_each_vertex(fixed, [this](long v) {
         if (parent_[v] < 0 && new_parent_[v] >= 0) {
