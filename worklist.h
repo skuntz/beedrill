@@ -44,7 +44,7 @@ public:
     void clear_all ()
     {
         assert(emu::pmanip::is_repl(this));
-        for (long nlet = 0; nlet < NODELETS(); ++nlet) {
+        for (long nlet = 0; nlet < NUM_NODES(); ++nlet) {
             get_nth(nlet).clear();
         }
     }
@@ -80,7 +80,7 @@ public:
     {
         assert(emu::pmanip::is_repl(this));
         // Get the pointer from the nodelet where src vertex lives
-        volatile long * head_ptr = &get_nth(src & (NODELETS()-1)).head_;
+        volatile long * head_ptr = &get_nth(src & (NUM_NODES()-1)).head_;
         // Append to head of worklist
         edges_begin_[src] = edges_begin;
         edges_end_[src] = edges_end;

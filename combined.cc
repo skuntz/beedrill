@@ -324,7 +324,7 @@ int main(int argc, char ** argv)
         // Not sure how stddev is supposed to work in this case, we'll
         // just use stddev of the rates.
         LOG("\nMean performance over %li trials on %li nodelets:\n",
-            args.num_trials, NODELETS());
+            args.num_trials, NUM_NODES());
         LOG("    BFS: %3.2f +/- %3.2f GTEPS, min/max %3.2f/%3.2f GTEPS\n",
             1e-9 * bfs_stats.hmean, 1e-9 * bfs_stats.stddev,
             1e-9 * bfs_stats.min,  1e-9 * bfs_stats.max);

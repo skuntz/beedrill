@@ -15,7 +15,7 @@ volatile replicated long * ack_control_data;
 static inline void
 ack_control_init()
 {
-    long * tmp = (long*)mw_malloc1dlong(NODELETS());
+    long * tmp = (long*)mw_malloc1dlong(NUM_NODES());
     assert(tmp);
     mw_replicated_init((long*)&ack_control_data, (long)tmp);
 }
@@ -33,7 +33,7 @@ ack_control_reenable_acks()
     ENABLE_ACKS();
     // Do a remote write to each nodelet.
     // These will be queued behind all previous remotes
-    for (long nlet = 0; nlet < NODELETS(); ++nlet) {
+    for (long nlet = 0; nlet < NUM_NODES(); ++nlet) {
         ack_control_data[nlet] = 1;
     }
     // Wait for them to complete

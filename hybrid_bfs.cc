@@ -18,6 +18,9 @@ hybrid_bfs::hybrid_bfs(graph & g)
 {
     // Force ack controller singleton to initialize itself
     ack_control_init();
+
+
+    
 }
 
 // Shallow copy constructor
@@ -29,7 +32,9 @@ hybrid_bfs::hybrid_bfs(const hybrid_bfs& other, emu::shallow_copy shallow)
 , scout_count_(other.scout_count_)
 , awake_count_(other.awake_count_)
 , worklist_(other.worklist_, shallow)
-{}
+{
+
+}
 
 /**
  * Top-down BFS step ("migrating threads" variant)
@@ -449,7 +454,7 @@ hybrid_bfs::dump_queue_stats()
     fflush(stdout);
 
     printf("Frontier size per nodelet: ");
-    for (long n = 0; n < NODELETS(); ++n) {
+    for (long n = 0; n < NUM_NODES(); ++n) {
         sliding_queue & local_queue = queue_.get_nth(n);
         printf("%li ", local_queue.size());
     }
