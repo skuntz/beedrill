@@ -84,10 +84,11 @@ hybrid_bfs::top_down_step_with_migrating_threads()
         worklist_.append(src, g_->out_edges_begin(src), g_->out_edges_end(src));
     });
 
+    long * parent_ptr = &(parent_[0]);
     worklist_.process_all_edges(dynamic_unroll_policy<64>(),
-        [this](long src, long dst) {
+        [this, parent_ptr](long src, long dst) {
             // Look up the parent of the vertex we are visiting
-            long * parent = &parent_[dst];
+            long * parent = &parent_ptr[dst];
             long curr_val = *parent;
             // If we are the first to visit this vertex
             if (curr_val < 0) {
@@ -117,16 +118,18 @@ long
 hybrid_bfs::bottom_up_step()
 {
     awake_count_ = 0;
+    long * parent_ptr = &(parent_[0]);
+    long * new_parent_ptr = &(new_parent_[0]);
 
     // For all vertices without a parent...
-    g_->for_each_vertex(fixed, [this](long child) {
-        if (parent_[child] >= 0) { return; }
+    g_->for_each_vertex(fixed, [this, parent_ptr, new_parent_ptr](long child) {
+        if (parent_ptr[child] >= 0) { return; }
         // Look for neighbors who are in the frontier
-        g_->find_out_edge_if(unroll, child, [this, child](long parent) {
+        g_->find_out_edge_if(unroll, child, [child, parent_ptr, new_parent_ptr](long parent) {
             // If the neighbor is in the frontier...
-            if (parent_[parent] >= 0) {
+            if (parent_ptr[parent] >= 0) {
                 // Claim as a parent
-                new_parent_[child] = parent;
+                new_parent_ptr[child] = parent;
                 // No need to keep searching
                 return true;
             } else return false;
@@ -134,10 +137,10 @@ hybrid_bfs::bottom_up_step()
     });
 
     // Add to the queue all vertices that didn't have a parent before
-    g_->for_each_vertex(fixed, [this](long v) {
-        if (parent_[v] < 0 && new_parent_[v] >= 0) {
+    g_->for_each_vertex(fixed, [this, parent_ptr, new_parent_ptr](long v) {
+        if (parent_ptr[v] < 0 && new_parent_ptr[v] >= 0) {
             // Set parent
-            parent_[v] = new_parent_[v];
+            parent_ptr[v] = new_parent_ptr[v];
             // Add to the queue for the next frontier
             queue_.push_back(v);
             // Track number of vertices woken up in this step
