@@ -216,7 +216,7 @@ int main(int argc, char ** argv)
     }
 
     // Initialize the algorithms and stat trackers
-    LOG("Initializing graph algorithm data structures...\n");
+    LOG("Initializing graph algorithm data structures...\n"); 
     auto bfs = emu::make_repl_shallow<hybrid_bfs>(*g);
     std::vector<double> bfs_teps(args.num_trials);
     auto cc = emu::make_repl_shallow<components>(*g);
@@ -225,7 +225,7 @@ int main(int argc, char ** argv)
     std::vector<double> pr_flops(args.num_trials);
     auto tc = emu::make_repl_shallow<triangle_count>(*g);
     std::vector<double> tc_tpps(args.num_trials);
-
+    
     // Run multiple trials of each algorithm
     for (long trial = 0; trial < args.num_trials; ++trial) {
         hooks_set_attr_i64("trial", trial);
