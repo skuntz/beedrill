@@ -1,0 +1,1 @@
+cat n8_exceptions n1_exceptions | sed 's/logs.*.out//' | cut -d ! -f 1 | sort | uniq
