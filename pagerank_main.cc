@@ -154,7 +154,7 @@ int main(int argc, char ** argv)
     if (args.sort_edge_blocks) {
         LOG("Sorting edge lists by nodelet...\n");
         g->sort_edge_lists([](long lhs, long rhs) {
-            unsigned long nlet_mask = NODELETS() - 1;
+            unsigned long nlet_mask = NUM_NODES() - 1;
             unsigned long lhs_nlet = lhs & nlet_mask;
             unsigned long rhs_nlet = rhs & nlet_mask;
             return lhs_nlet < rhs_nlet;
@@ -223,7 +223,7 @@ int main(int argc, char ** argv)
 
         // Output results
         time_ms_all_trials += time_ms;
-        LOG("Computed PageRank in %i iterations (%3.2f ms, %3.2f MFLOPS, %3.2f MB/s) \n",
+        LOG("Computed PageRank in %i iterations (%3.2f ms, %3.9f MFLOPS, %3.2f MB/s) \n",
             num_iters, time_ms,
             1e-6*flops/(time_ms*1e-3),
             1e-6*bytes/(time_ms*1e-3));

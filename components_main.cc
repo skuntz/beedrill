@@ -177,7 +177,7 @@ int main(int argc, char ** argv)
         double time_ms = hooks_region_end();
 
         double teps = s.num_iters * g->num_edges() / (1e-3 * time_ms);
-        LOG("Found %li components in %li iterations (%3.2f ms, %3.2f GTEPS)\n",
+        LOG("Found %li components in %li iterations (%3.2f ms, %3.9f GTEPS)\n",
             s.num_components, s.num_iters, time_ms, 1e-9 * teps);
     }
 

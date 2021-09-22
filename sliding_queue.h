@@ -41,8 +41,8 @@ public:
 
     explicit sliding_queue(long size)
     // Each queue only needs to store vertices on the local nodelet
-    : buffers_(size / NODELETS())
-    , heads_(size / NODELETS())
+    : buffers_(size / NUM_NODES())
+    , heads_(size / NUM_NODES())
     , head_ptr_(heads_.get_localto(this))
     , buffer_ptr_(buffers_.get_localto(this))
     {
@@ -133,7 +133,7 @@ public:
     {
         // TODO we could parallelize this. But in the common case, we will
         // find that the first queue is non-empty and exit early.
-        for (long n = 0; n < NODELETS(); ++n) {
+        for (long n = 0; n < NUM_NODES(); ++n) {
             if (!get_nth(n).is_empty()) {
                 return false;
             }

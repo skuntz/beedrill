@@ -216,7 +216,7 @@ int main(int argc, char ** argv)
     }
 
     // Initialize the algorithms and stat trackers
-    LOG("Initializing graph algorithm data structures...\n");
+    LOG("Initializing graph algorithm data structures...\n"); 
     auto bfs = emu::make_repl_shallow<hybrid_bfs>(*g);
     std::vector<double> bfs_teps(args.num_trials);
     auto cc = emu::make_repl_shallow<components>(*g);
@@ -225,7 +225,7 @@ int main(int argc, char ** argv)
     std::vector<double> pr_flops(args.num_trials);
     auto tc = emu::make_repl_shallow<triangle_count>(*g);
     std::vector<double> tc_tpps(args.num_trials);
-
+    
     // Run multiple trials of each algorithm
     for (long trial = 0; trial < args.num_trials; ++trial) {
         hooks_set_attr_i64("trial", trial);
@@ -245,7 +245,7 @@ int main(int argc, char ** argv)
         double bfs_time_ms = hooks_region_end();
         auto bfs_stats = bfs->compute_stats();
         bfs_teps[trial] = bfs_stats.num_edges_traversed / (1e-3 * bfs_time_ms);
-        LOG("Traversed %li edges in %3.2f ms, %3.2f GTEPS\n",
+        LOG("Traversed %li edges in %3.2f ms, %3.9f GTEPS\n",
             bfs_stats.num_edges_traversed,
             bfs_time_ms,
             1e-9 * bfs_teps[trial]
@@ -260,7 +260,7 @@ int main(int argc, char ** argv)
 
         cc_teps[trial] = g->num_edges() * cc_stats.num_iters
             / (1e-3 * cc_time_ms);
-        LOG("Found %li components in %li iterations (%3.2f ms, %3.2f GTEPS)\n",
+        LOG("Found %li components in %li iterations (%3.2f ms, %3.9f GTEPS)\n",
             cc_stats.num_components,
             cc_stats.num_iters,
             cc_time_ms,
@@ -278,7 +278,7 @@ int main(int argc, char ** argv)
         long bytes = num_iters * (56 * g->num_vertices() + 8 * g->num_edges());
         pr_flops[trial] = float_ops/(pr_time_ms*1e-3);
         // Output results
-        LOG("Computed PageRank in %i iterations (%3.2f ms, %3.2f MFLOPS, %3.2f MB/s)\n",
+        LOG("Computed PageRank in %i iterations (%3.2f ms, %3.9f MFLOPS, %3.2f MB/s)\n",
             num_iters, pr_time_ms,
             1e-6*float_ops/(pr_time_ms*1e-3),
             1e-6*bytes/(pr_time_ms*1e-3));
@@ -290,7 +290,7 @@ int main(int argc, char ** argv)
         hooks_set_attr_i64("num_twopaths", tc_stats.num_twopaths);
         double tc_time_ms = hooks_region_end();
         tc_tpps[trial] = tc_stats.num_twopaths / (1e-3 * tc_time_ms);
-        LOG("Found %li triangles and %li two-paths in %3.2f ms, %3.2f GTTPS\n",
+        LOG("Found %li triangles and %li two-paths in %3.2f ms, %3.9f GTTPS\n",
             tc_stats.num_triangles,
             tc_stats.num_twopaths,
             tc_time_ms,
@@ -324,20 +324,21 @@ int main(int argc, char ** argv)
         // Not sure how stddev is supposed to work in this case, we'll
         // just use stddev of the rates.
         LOG("\nMean performance over %li trials on %li nodelets:\n",
-            args.num_trials, NODELETS());
-        LOG("    BFS: %3.2f +/- %3.2f GTEPS, min/max %3.2f/%3.2f GTEPS\n",
+            args.num_trials, NUM_NODES());
+        LOG("    BFS: %3.9f +/- %3.9f GTEPS, min/max %3.9f/%3.9f GTEPS\n",
             1e-9 * bfs_stats.hmean, 1e-9 * bfs_stats.stddev,
             1e-9 * bfs_stats.min,  1e-9 * bfs_stats.max);
-        LOG("    Connected Components: %3.2f +/- %3.2f GTEPS, min/max %3.2f/%3.2f GTEPS\n",
+        LOG("    Connected Components: %3.9f +/- %3.9f GTEPS, min/max %3.9f/%3.9f GTEPS\n",
             1e-9 * cc_stats.hmean, 1e-9 * cc_stats.stddev,
             1e-9 * cc_stats.min,  1e-9 * cc_stats.max);
-        LOG("    PageRank: %3.2f +/- %3.2f MFLOPS, min/max %3.2f/%3.2f MFLOPS\n",
+        LOG("    PageRank: %3.9f +/- %3.9f MFLOPS, min/max %3.9f/%3.9f MFLOPS\n",
             1e-6 * pr_stats.hmean, 1e-6 * pr_stats.stddev,
             1e-6 * pr_stats.min,  1e-6 * pr_stats.max);
-        LOG("    Triangle Counting: %3.2f +/- %3.2f GTPPS, min/max %3.2f/%3.2f GTPPS\n",
+        LOG("    Triangle Counting: %3.9f +/- %3.9f GTPPS, min/max %3.9f/%3.9f GTPPS\n",
             1e-9 * tc_stats.hmean, 1e-9 * tc_stats.stddev,
             1e-9 * tc_stats.min,  1e-9 * tc_stats.max);
     }
-
+    printf("about to return %lu\n", !success); 
+    fflush(stdout); 
     return !success;
 }

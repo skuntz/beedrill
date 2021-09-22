@@ -155,7 +155,7 @@ public:
         const long char_limit = 80 - 8;
         std::string col_label;
         long num_cols, nlets_per_col;
-        long num_nlets = NODELETS();
+        long num_nlets = NUM_NODES();
         if (num_nlets == 1) {
             // Everything on one nodelet, not an interesting plot
             return;
@@ -176,7 +176,7 @@ public:
 
         // Compute percentage of edges on each nodelet
         std::vector<double> percent_edges(num_cols, 0);
-        for (long nlet = 0; nlet < NODELETS(); ++nlet) {
+        for (long nlet = 0; nlet < NUM_NODES(); ++nlet) {
             long col = nlet / nlets_per_col;
             percent_edges[col] +=
                 (double)num_local_edges_.get_nth(nlet) / (num_edges_ * 2);
@@ -349,6 +349,8 @@ create_graph_from_edge_list(dist_edge_list & dist_el)
             id = &id - id_begin;
         }
     );
+
+  
     // Init all vertex degrees to zero
     parallel::fill(fixed,
         g->vertex_out_degree_.begin(), g->vertex_out_degree_.end(), 0L);
@@ -394,8 +396,9 @@ create_graph_from_edge_list(dist_edge_list & dist_el)
         max_edges_per_nodelet);
 
     // Initialize each copy of next_edge_storage to point to the local array
-    for (long nlet = 0; nlet < NODELETS(); ++nlet) {
+    for (long nlet = 0; nlet < NUM_NODES(); ++nlet) {
         g->get_nth(nlet).next_edge_storage_ = g->edge_storage_->get_nth(nlet);
+
     }
 
     // Assign each edge block a position within the big array

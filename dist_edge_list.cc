@@ -39,7 +39,7 @@ dist_edge_list::load_distributed(const char* filename)
 {
     // Load from fileset
     LOG("Reading edge list from fileset %s with %li nodelets...\n",
-        filename, NODELETS());
+        filename, NUM_NODES());
     emu::fileset files(filename, "rb");
     auto dist_el = emu::make_repl_shallow<dist_edge_list>();
     deserialize(files, *dist_el);

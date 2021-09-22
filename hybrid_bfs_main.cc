@@ -31,7 +31,7 @@ void
 print_help(const char* argv0)
 {
     LOG( "Usage: %s [OPTIONS]\n", argv0);
-    LOG("\t--graph_filename     Path to graph file to load\n");
+    LOG("\t--graph_filename     Path to graph file to load.\n");
     LOG("\t--distributed_load   Load the graph from all nodes at once (File must exist on all nodes, use absolute path).\n");
     LOG("\t--heavy_threshold    Vertices with this many neighbors will be spread across nodelets\n");
     LOG("\t--num_trials         Run BFS this many times.\n");
@@ -201,12 +201,16 @@ int main(int argc, char ** argv)
     if (args.sort_edge_blocks) {
         LOG("Sorting edge lists by nodelet...\n");
         g->sort_edge_lists([](long lhs, long rhs) {
-            unsigned long nlet_mask = NODELETS() - 1;
+            unsigned long nlet_mask = NUM_NODES() - 1;
             unsigned long lhs_nlet = lhs & nlet_mask;
             unsigned long rhs_nlet = rhs & nlet_mask;
             return lhs_nlet < rhs_nlet;
         });
     }
+    /*if(NUM_NODES() > dist_el->num_vertices()) { 
+        LOG("NUM_NODES() must be =< num vertices. NUM_NODES(): %lu, num_vertices: %lu\n", NUM_NODES(), dist_el->num_vertices()); 
+        exit(1); 
+    } */ 
 
     // Print graph statistics
     g->print_distribution();
