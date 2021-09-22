@@ -48,7 +48,7 @@ algorithm, with input parameters A, B, C, D, and the specified number of edges
 and vertices. Suffixes K/M/G/T can be used in place of 2^10, 2^20, 2^30, 2^40.   
 * `graph500-scaleN`: Generates a random graph suitable for running the graph500
 benchmark at scale N (but see caveots below). Uses the RMAT algorithm with 
-parameters A=0.57, B=0.19, C=0.19, D=0.05, num_edges=16*2^N, num_vertices=2^N. 
+parameters A=0.57, B=0.19, C=0.19, D=0.05, num\_edges=16*2^N, num_vertices=2^N. 
 
 The graph generation algorithm benefits from multiple cores and uses a lot of 
 memory. Be careful when generating graphs at scale greater than 20 on a personal 
@@ -62,7 +62,37 @@ Pass `--help` to see the available flags for each benchmark.
 
 ## Benchmarks
 
-- hybrid_bfs: Runs a parallel breadth-first search over the graph. 
-- components: Finds all the connected components in the graph
-- pagerank: Runs the PageRank algorithm
-- triangle_count: Counts the number of triangles in the graph
+### hybrid\_bfs
+#### Description 
+Runs a parallel breadth-first search over the graph. 
+#### Limits 
+- 1 Node: 
+- 8 Nodes: 
+
+### Connected Components
+#### Description 
+Finds all the connected components in the graph
+#### Limits
+- 1 Node: TBD
+- 8 Nodes: Scale 25 took 54 mins
+
+### pagerank
+#### Description 
+Runs the PageRank algorithm
+#### Limits 
+- 1 Node: Scale 22 took 2.5 hours
+- 8 Nodes: Scale 25 took 2.5 hours 
+
+### triangle\_count
+#### Description 
+Counts the number of triangles in the graph
+#### Limits 
+- 1 Node: TBD
+- 8 Nodes: TBD
+
+### ktruss 
+#### Description 
+#### Limits 
+- 1 Node: Scale 23 took 4 hours 
+- 8 Nodes: TBD
+

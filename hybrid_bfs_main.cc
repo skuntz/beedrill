@@ -31,7 +31,7 @@ void
 print_help(const char* argv0)
 {
     LOG( "Usage: %s [OPTIONS]\n", argv0);
-    LOG("\t--graph_filename     Path to graph file to load\n");
+    LOG("\t--graph_filename     Path to graph file to load.\n");
     LOG("\t--distributed_load   Load the graph from all nodes at once (File must exist on all nodes, use absolute path).\n");
     LOG("\t--heavy_threshold    Vertices with this many neighbors will be spread across nodelets\n");
     LOG("\t--num_trials         Run BFS this many times.\n");
@@ -207,6 +207,10 @@ int main(int argc, char ** argv)
             return lhs_nlet < rhs_nlet;
         });
     }
+    /*if(NUM_NODES() > dist_el->num_vertices()) { 
+        LOG("NUM_NODES() must be =< num vertices. NUM_NODES(): %lu, num_vertices: %lu\n", NUM_NODES(), dist_el->num_vertices()); 
+        exit(1); 
+    } */ 
 
     // Print graph statistics
     g->print_distribution();

@@ -182,6 +182,11 @@ int main(int argc, char ** argv)
         double time_ms = hooks_region_end();
 
         LOG("Computed k-truss in %3.2f ms, max k is %li\n", time_ms, s.max_k);
+        LOG("s.num_iters: %lu, g->num_edges(): %lu\n", s.num_iters, g->num_edges()); 
+
+        double teps = s.num_iters * g->num_edges() / (1e-3 * time_ms);
+        LOG("%3.9f GTEPS\n", 1e-9 * teps);
+        
         for (long k = 2; k <= s.max_k; ++k) {
             LOG("\t%li-truss: %li vertices and %li edges\n",
             // NOTE There is no 0-truss or 1-truss, so edges_per_truss[0] is
