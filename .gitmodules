@@ -1,4 +1,0 @@
-[submodule "emu_cxx_utils"]
-	path = emu_cxx_utils
-	url = ../emu_cxx_utils.git
-	branch = beedrill

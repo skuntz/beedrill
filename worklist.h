@@ -128,7 +128,7 @@ public:
     template<class Visitor, long Grain>
     void process(emu::dynamic_policy<Grain> policy, Visitor visitor)
     {
-        for (long t = 0; t < emu::threads_per_nodelet; ++t) {
+        for (long t = 0; t < emu::threads_per_node; ++t) {
             cilk_spawn worker<Visitor, Grain>(visitor);
         }
     }
