@@ -209,7 +209,7 @@ int main(int argc, char ** argv)
         });
     }
     auto build_graph_ms = hooks_region_end(); 
-    LOG("Built graph in %3.9f ms\n"); 
+    LOG("Built graph in %3.9f ms\n", build_graph_ms); 
     /*if(NUM_NODES() > dist_el->num_vertices()) { 
         LOG("NUM_NODES() must be =< num vertices. NUM_NODES(): %lu, num_vertices: %lu\n", NUM_NODES(), dist_el->num_vertices()); 
         exit(1); 
