@@ -386,8 +386,16 @@ create_graph_from_edge_list(dist_edge_list & dist_el)
     // Double-check that we haven't lost any edges
     assert(2 * g->num_edges_ ==
            emu::repl_reduce(g->num_local_edges_, std::plus<>()));
-
-    LOG("Will use %li MiB on each nodelet\n", (max_edges_per_nodelet * sizeof(long)) >> 20);
+    //LOG("max_edges_per_nodelet: %lu\n", max_edges_per_nodelet);
+    //LOG("sizeof(long): %lu\n", sizeof(long)); 
+    long edges_node_bytes = max_edges_per_nodelet * sizeof(long); 
+    long edges_mem_bytes = edges_node_bytes * NUM_NODES(); 
+    LOG("Edges will use %lu MiB (%lu bytes) on each node * %li nodes = %lu MiB (%lu bytes) for edges\n", edges_node_bytes >> 20, edges_node_bytes, NUM_NODES(), edges_mem_bytes >> 20, edges_mem_bytes);
+    long vertices_mem_bytes = dist_el.num_vertices() * 3 * sizeof(long); 
+    LOG("Num Verticies: %li * 3 (id, out degree, out neighbor) * sizeof(long) = %li MiB (%li bytes) for vertices\n", dist_el.num_vertices(), vertices_mem_bytes >> 20, vertices_mem_bytes);
+    LOG("Total Memory for Graph: %lu bytes (%lu MiB)\n", edges_mem_bytes + vertices_mem_bytes, (edges_mem_bytes + vertices_mem_bytes) >> 20); 
+   
+    //LOG("Total Memory for edges & vertices: %3.9Lf\n", )
 
     // Allocate a big stripe, such that there is enough room for the nodelet
     // with the most local edges
