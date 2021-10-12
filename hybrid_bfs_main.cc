@@ -197,6 +197,7 @@ int main(int argc, char ** argv)
 
     // Build the graph
     LOG("Constructing graph...\n");
+    hooks_region_begin("build_graph"); 
     auto g = create_graph_from_edge_list<graph>(*dist_el);
     if (args.sort_edge_blocks) {
         LOG("Sorting edge lists by nodelet...\n");
@@ -207,6 +208,8 @@ int main(int argc, char ** argv)
             return lhs_nlet < rhs_nlet;
         });
     }
+    auto build_graph_ms = hooks_region_end(); 
+    LOG("Built graph in %3.9f ms\n", build_graph_ms); 
     /*if(NUM_NODES() > dist_el->num_vertices()) { 
         LOG("NUM_NODES() must be =< num vertices. NUM_NODES(): %lu, num_vertices: %lu\n", NUM_NODES(), dist_el->num_vertices()); 
         exit(1); 
@@ -320,7 +323,7 @@ int main(int argc, char ** argv)
         );
     }
 
-    LOG("Mean performance over all trials: %3.2f MTEPS \n",
+    LOG("Mean performance over all trials: %3.9f MTEPS \n",
         (1e-6 * num_edges_traversed_all_trials) / (time_ms_all_trials / 1000)
     );
 
