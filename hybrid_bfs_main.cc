@@ -198,7 +198,6 @@ int main(int argc, char ** argv)
     // Build the graph
     LOG("Constructing graph...\n");
     volatile uint64_t start_constructing_graph = CLOCK(); 
-    //hooks_region_begin("build_graph"); 
     auto g = create_graph_from_edge_list<graph>(*dist_el);
     if (args.sort_edge_blocks) {
         LOG("Sorting edge lists by nodelet...\n");
@@ -209,10 +208,13 @@ int main(int argc, char ** argv)
             return lhs_nlet < rhs_nlet;
         });
     }
-    //auto build_graph_ms = hooks_region_end(); 
     volatile uint64_t end_constructing_graph = CLOCK();
     uint64_t build_graph_clock_ticks = end_constructing_graph - start_constructing_graph; 
-    LOG("Built graph in %lu clock ticks\n", build_graph_clock_ticks); 
+    LOG("Built graph in %lu clock ticks\n", build_graph_clock_ticks);
+    /* 
+        Convert clock ticks to ms: 
+        ms = (clock_ticks)/(core_clock_rate*1000)
+    */ 
     /*if(NUM_NODES() > dist_el->num_vertices()) { 
         LOG("NUM_NODES() must be =< num vertices. NUM_NODES(): %lu, num_vertices: %lu\n", NUM_NODES(), dist_el->num_vertices()); 
         exit(1); 
