@@ -197,7 +197,7 @@ int main(int argc, char ** argv)
         cc->dump();
     }
     
-    LOG("Mean performance over %d trials: %3.9f GTEPS \n", 
+    LOG("Mean performance over %lu trials: %3.9f GTEPS \n", 
         args.num_trials, 
         (1e-9 * num_edges_traversed_all_trials)  / (time_ms_all_trials / 1000)
     ); 
