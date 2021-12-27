@@ -161,7 +161,9 @@ int main(int argc, char ** argv)
     // Initialize the algorithm
     LOG("Initializing data structures...\n");
     auto cc = emu::make_repl_shallow<components>(*g);
-
+    
+    long num_edges_traversed_all_trials = 0; 
+    double time_ms_all_trials = 0; 
     // Run multiple trials of the algorithm
     for (long trial = 0; trial < args.num_trials; ++trial) {
         // Clear out the data structures
@@ -175,8 +177,9 @@ int main(int argc, char ** argv)
         hooks_set_attr_i64("num_iters", s.num_iters);
         hooks_set_attr_i64("num_components", s.num_components);
         double time_ms = hooks_region_end();
-
         double teps = s.num_iters * g->num_edges() / (1e-3 * time_ms);
+        num_edges_traversed_all_trials += s.num_iters * g->num_edges(); 
+        time_ms_all_trials += time_ms; 
         LOG("Found %li components in %li iterations (%3.2f ms, %3.9f GTEPS)\n",
             s.num_components, s.num_iters, time_ms, 1e-9 * teps);
     }
@@ -193,6 +196,10 @@ int main(int argc, char ** argv)
     if (args.dump_results) {
         cc->dump();
     }
-
+    
+    LOG("Mean performance over %lu trials: %3.9f GTEPS \n", 
+        args.num_trials, 
+        (1e-9 * num_edges_traversed_all_trials)  / (time_ms_all_trials / 1000)
+    ); 
     return !success;
 }
