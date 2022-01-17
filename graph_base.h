@@ -349,13 +349,16 @@ create_graph_from_edge_list(dist_edge_list & dist_el)
             id = &id - id_begin;
         }
     );
-
+    //cilk_sync;
   
     // Init all vertex degrees to zero
     parallel::fill(fixed,
         g->vertex_out_degree_.begin(), g->vertex_out_degree_.end(), 0L);
+    // cilk_sync;
 
     // Compute degree of each vertex
+    // SKK For connected components, we only need the edge in one direction
+    //     We can mark both src and dst as part of the component
     LOG("Computing degree of each vertex...\n");
     hooks_region_begin("calculate_degrees");
     // Initialize the degree of each vertex to zero
@@ -364,7 +367,7 @@ create_graph_from_edge_list(dist_edge_list & dist_el)
         assert(src >= 0 && src < g->num_vertices());
         assert(dst >= 0 && dst < g->num_vertices());
         emu::remote_add(&g->vertex_out_degree_[src], 1);
-        emu::remote_add(&g->vertex_out_degree_[dst], 1);
+        //emu::remote_add(&g->vertex_out_degree_[dst], 1);
     });
     hooks_region_end();
 
@@ -384,7 +387,8 @@ create_graph_from_edge_list(dist_edge_list & dist_el)
     long max_edges_per_nodelet = emu::repl_reduce(g->num_local_edges_,
         [](long lhs, long rhs) { return std::max(lhs, rhs); });
     // Double-check that we haven't lost any edges
-    assert(2 * g->num_edges_ ==
+    // SKK For connected components, we will only represent edges once
+    assert(g->num_edges_ ==
            emu::repl_reduce(g->num_local_edges_, std::plus<>()));
     //LOG("max_edges_per_nodelet: %lu\n", max_edges_per_nodelet);
     //LOG("sizeof(long): %lu\n", sizeof(long)); 
@@ -429,12 +433,13 @@ create_graph_from_edge_list(dist_edge_list & dist_el)
     // Scan the edge list one more time
     // For each edge, find the right edge block, then
     // atomically increment eb->nedgesblk to find out where it goes
+    // SKK for Connected Components will will only represent directed edge
     LOG("Filling edge blocks...\n");
     hooks_region_begin("fill_edge_blocks");
     dist_el.forall_edges([g] (long src, long dst) {
         // Insert both ways for undirected graph
         g->insert_edge(src, dst);
-        g->insert_edge(dst, src);
+        //g->insert_edge(dst, src);
     });
     hooks_region_end();
 

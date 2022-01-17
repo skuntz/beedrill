@@ -38,6 +38,9 @@ components::clear()
 components::stats
 components::run()
 {
+    volatile uint64_t start, ticks;
+    
+    //start = CLOCK();
     worklist_.clear_all();
     for_each(fixed, g_->vertices_begin(), g_->vertices_end(), [this] (long v){
         // Put each vertex in its own component
@@ -46,19 +49,27 @@ components::run()
         component_size_[v] = 0;
         // Build the worklist for the first iteration
         // Later, we do this during the tree-climbing step
-        worklist_.append(v, g_->out_edges_begin(v), g_->out_edges_end(v));
+	// SKK Only add vertices with out edges wl2
+	if (g_->out_degree(v)) 
+	    worklist_.append(v, g_->out_edges_begin(v), g_->out_edges_end(v));
     });
+    //ticks = CLOCK() - start;
+    //LOG("Init components in %lu clock ticks\n", ticks);
 
     long num_iters;
     for (num_iters = 1; ; ++num_iters) {
         changed_ = false;
         // For all edges that connect vertices in different components...
+	// SKK If we only have one directional edges, need to assign both ways
         worklist_.process_all_edges(dynamic_policy<64>(),
             [this](long src, long dst) {
                 long &comp_src = component_[src];
                 long &comp_dst = component_[dst];
                 if (comp_dst < comp_src) {
                     comp_src = comp_dst;
+		    changed_ = true;
+		} else if (comp_src < comp_dst) {
+		    comp_dst = comp_src;
                     changed_ = true;
                 }
             }
@@ -69,14 +80,24 @@ components::run()
 
         worklist_.clear_all();
         g_->for_each_vertex(fixed, [this](long v) {
+	    // skk Move so that out degree is local. component may move us wl3
+	    if (g_->out_degree(v)) 
+	    	worklist_.append(v, g_->out_edges_begin(v), g_->out_edges_end(v));
+		
             // Merge connected components
+	    // Does this work if we have one directional edges?
+		// I think so...
             while (component_[v] != component_[component_[v]]) {
                 component_[v] = component_[component_[v]];
             }
             // Add this vertex to the worklist for the next step
-            worklist_.append(v, g_->out_edges_begin(v), g_->out_edges_end(v));
+	    // skk Only do so if edges exist wl1
+	    //if (g_->out_degree(v)) 
+	    //	worklist_.append(v, g_->out_edges_begin(v), g_->out_edges_end(v));
         });
     }
+
+    
     // Count up the size of each component
     for_each(fixed, component_.begin(), component_.end(),
         [this](long c) { emu::remote_add(&component_size_[c], 1); }
