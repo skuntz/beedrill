@@ -16,6 +16,8 @@
 #include "dist_edge_list.h"
 #include "worklist.h"
 
+
+
 // Global data structures
 template<class Edge>
 class graph_base {
@@ -40,7 +42,9 @@ protected:
     emu::repl<long> num_local_edges_;
     // Pointer to un-reserved edge storage in local stripe
     Edge *next_edge_storage_;
+   
 public:
+    
     // Constructor
     graph_base(long num_vertices, long num_edges)
         : num_vertices_(num_vertices)
@@ -349,38 +353,47 @@ create_graph_from_edge_list(dist_edge_list & dist_el)
             id = &id - id_begin;
         }
     );
-    //cilk_sync;
+    cilk_sync;
   
     // Init all vertex degrees to zero
     parallel::fill(fixed,
         g->vertex_out_degree_.begin(), g->vertex_out_degree_.end(), 0L);
-    // cilk_sync;
+    cilk_sync;
 
     // Compute degree of each vertex
     // SKK For connected components, we only need the edge in one direction
     //     We can mark both src and dst as part of the component
     LOG("Computing degree of each vertex...\n");
-    hooks_region_begin("calculate_degrees");
+    hooks_region_begin("calculate_degrees"); 
     // Initialize the degree of each vertex to zero
     // Scan the edge list and do remote atomic adds into vertex_out_degree
     dist_el.forall_edges([g] (long src, long dst) {
-        assert(src >= 0 && src < g->num_vertices());
-        assert(dst >= 0 && dst < g->num_vertices());
+	    //SKK Remove asserts and exit with vertex number
+	    //assert(src >= 0 && src < g->num_vertices());
+	    if (src < 0 || src >= g->num_vertices()) {
+		exit(src);
+	    }
+		
+	    // assert(dst >= 0 && dst < g->num_vertices());
+	    if (dst < 0 || dst >= g->num_vertices()) {
+		exit(dst);
+	    }
         emu::remote_add(&g->vertex_out_degree_[src], 1);
         //emu::remote_add(&g->vertex_out_degree_[dst], 1);
     });
-    hooks_region_end();
+    cilk_sync;
+    hooks_region_end(); 
 
     // Count how many edges will need to be stored on each nodelet
     // This is in preparation for the next step, so we can do one big allocation
     // instead of a bunch of tiny ones.
-    LOG("Counting local edges...\n");
+    LOG("Counting local edges...\n");  
     hooks_region_begin("count_local_edges");
     g->num_local_edges_ = 0;
     g->for_each_vertex([g](long v) {
         emu::atomic_addms(&g->num_local_edges_, g->vertex_out_degree_[v]);
     });
-    hooks_region_end();
+    hooks_region_end(); 
 
     LOG("Allocating edge storage...\n");
     // Run around and compute the largest number of edges on any nodelet
@@ -390,8 +403,8 @@ create_graph_from_edge_list(dist_edge_list & dist_el)
     // SKK For connected components, we will only represent edges once
     assert(g->num_edges_ ==
            emu::repl_reduce(g->num_local_edges_, std::plus<>()));
-    //LOG("max_edges_per_nodelet: %lu\n", max_edges_per_nodelet);
-    //LOG("sizeof(long): %lu\n", sizeof(long)); 
+    LOG("max_edges_per_nodelet: %lu\n", max_edges_per_nodelet);
+    LOG("sizeof(long): %lu\n", sizeof(long)); 
     long edges_node_bytes = max_edges_per_nodelet * sizeof(long); 
     long edges_mem_bytes = edges_node_bytes * NUM_NODES(); 
     LOG("Edges will use %lu MiB (%lu bytes) on each node * %li nodes = %lu MiB (%lu bytes) for edges\n", edges_node_bytes >> 20, edges_node_bytes, NUM_NODES(), edges_mem_bytes >> 20, edges_mem_bytes);
@@ -428,6 +441,8 @@ create_graph_from_edge_list(dist_edge_list & dist_el)
             g->vertex_out_degree_[v] = 0;
         }
     });
+    cilk_sync;
+   
     hooks_region_end();
     // Populate the edge blocks with edges
     // Scan the edge list one more time
@@ -439,9 +454,9 @@ create_graph_from_edge_list(dist_edge_list & dist_el)
     dist_el.forall_edges([g] (long src, long dst) {
         // Insert both ways for undirected graph
         g->insert_edge(src, dst);
-        //g->insert_edge(dst, src);
+        //g->insert_edge(dst, src); // Don't insert both ways for cc
     });
-    hooks_region_end();
+    hooks_region_end(); 
 
     // LOG("Checking graph...\n");
     // check_graph();
