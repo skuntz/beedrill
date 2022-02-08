@@ -41,11 +41,6 @@ components::run()
     volatile  uint64_t start, ticks;
 
     start = CLOCK();
-    //SKK worklist_.clear_all();
-    ticks = CLOCK() - start;
-    //skk LOG("Clear worklist: %lu clock ticks\n", ticks);
-
-    start = CLOCK();
     for_each(fixed, g_->vertices_begin(), g_->vertices_end(), [this] (long v){
         // Put each vertex in its own component
         component_[v] = v;
@@ -63,24 +58,12 @@ components::run()
         changed_ = false;
         // For all edges that connect vertices in different components...
 	// SKK If we only have one directional edges, need to assign both ways
-	//     choose the smaller component
-#if 0
-        worklist_.process_all_edges(dynamic_policy<64>(),
-            [this](long src, long dst) {
-                long &comp_src = component_[src];
-                long &comp_dst = component_[dst];
-                if (comp_dst < comp_src) {
-                    comp_src = comp_dst;
-		    changed_ = true;
-		} else if (comp_src < comp_dst) {
-		    comp_dst = comp_src;
-                    changed_ = true;
-                }
-            }
-        );
-#else
+
+        // skk dyn policy no improvement
 	for_each(fixed, g_->vertices_begin(), g_->vertices_end(), [this] (long src) {
-	    g_->for_each_out_edge(src, [&](long dst) {
+	    if (g_->out_degree(src)) {
+		// simulator says this is better, but no diff on HW
+		g_->for_each_out_edge(src, [&](long dst) {
 		    long &comp_src = component_[src];
 		    long &comp_dst = component_[dst];
 		    if (comp_dst < comp_src) {
@@ -91,56 +74,33 @@ components::run()
 			changed_ = true;
 		    }
 		});
-       	    });
-#endif
-	
+	    }
+       	});
+
 	ticks = CLOCK() - start;
-	//skk LOG("\nConnect components (iter %lu): %lu clock ticks\n", num_iters, ticks);
-	//if (ticks)
-	//	    exit(1);
+	LOG("\nConnect components (iter %lu): %lu clock ticks\n", num_iters, ticks);
 
         // No changes? We're done!
 	start = CLOCK();
         if (!repl_reduce(changed_, std::logical_or<>())) break;
 	ticks = CLOCK() - start;
 	//skk LOG("  Reduce changed: %lu clock ticks\n", ticks);
-#if 0
+	
 	start = CLOCK();
-        worklist_.clear_all();
-	ticks = CLOCK() - start;
-	//skk LOG("  Worklist clear: %lu clock ticks\n", ticks);
-#endif	
-	start = CLOCK();
-	// SKK try changing  from fixed to dynamic
+	// SKK try changing  from fixed to dynamic (dyn1)
         g_->for_each_vertex(fixed, [this](long v) {
-	    // skk Move so that out degree is local. component may move us wl3
-	    //if (g_->out_degree(v)) 
-	    //	worklist_.append(v, g_->out_edges_begin(v), g_->out_edges_end(v));
-		
+	    	
             // Merge connected components
 	    // Does this work if we have one directional edges?
 	    // I think so...
             while (component_[v] != component_[component_[v]]) {
                 component_[v] = component_[component_[v]];
             }
-            // Add this vertex to the worklist for the next step
-	    // skk Only do so if edges exist wl1
-	    // SKK DEBUG takes this out separately to see how long this takes
-	    //if (g_->out_degree(v)) 
-	    //	worklist_.append(v, g_->out_edges_begin(v), g_->out_edges_end(v));
+          
         });
 	ticks = CLOCK() - start;
 	//skk LOG("  Update components: %lu clock ticks\n", ticks);
-#if 0
-	// SKK Move this part out for now
-	start = CLOCK();
-        g_->for_each_vertex(fixed, [this](long v) {
-	if (g_->out_degree(v)) 
-	    worklist_.append(v, g_->out_edges_begin(v), g_->out_edges_end(v));
-	});
-	ticks = CLOCK() - start;
-	LOG("  Build worklist: %lu clock ticks\n", ticks);
-#endif
+
     }
 
     
@@ -150,7 +110,7 @@ components::run()
         [this](long c) { emu::remote_add(&component_size_[c], 1); }
     );
     ticks = CLOCK() - start;
-    //skkLOG("Count component size: %lu clock ticks\n", ticks);
+    //skk LOG("Count component size: %lu clock ticks\n", ticks);
 
     stats s;
     s.num_iters = num_iters;
