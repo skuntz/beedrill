@@ -139,6 +139,19 @@ int main(int argc, char ** argv)
         dist_el->dump();
     }
 
+#if 1  // Verify edge ids
+    LOG("Verifying edge list ids...\n");
+    //dist_el->verify_ids();  // sequential
+    dist_el->forall_edges([&] (long src, long dst) {	  
+	if (src < 0 || src >= dist_el->num_vertices()) {
+	    exit(src);
+	}
+	if (dst < 0 || dst >= dist_el->num_vertices()) {
+	    exit(dst);
+	}       
+    });
+#endif
+
     // Build the graph
     LOG("Constructing graph...\n");
     auto g = create_graph_from_edge_list<graph>(*dist_el);
@@ -172,16 +185,20 @@ int main(int argc, char ** argv)
         hooks_set_attr_i64("trial", trial);
 
         LOG("Finding connected components...\n");
+
         hooks_region_begin("components");
+
         components::stats s = cc->run();
+
         hooks_set_attr_i64("num_iters", s.num_iters);
         hooks_set_attr_i64("num_components", s.num_components);
-        double time_ms = hooks_region_end();
+	double time_ms = hooks_region_end();
         double teps = s.num_iters * g->num_edges() / (1e-3 * time_ms);
         num_edges_traversed_all_trials += s.num_iters * g->num_edges(); 
         time_ms_all_trials += time_ms; 
         LOG("Found %li components in %li iterations (%3.2f ms, %3.9f GTEPS)\n",
             s.num_components, s.num_iters, time_ms, 1e-9 * teps);
+
     }
 
     if (args.check_results) {

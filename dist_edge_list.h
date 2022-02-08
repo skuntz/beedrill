@@ -65,6 +65,9 @@ public:
     // Print the edge list to stdout for debugging
     void dump() const;
 
+    // Verify that the edge ids are within the correct range
+    void verify_ids() const;
+
     template<class Policy, class Function>
     void forall_edges(Policy policy, Function worker)
     {

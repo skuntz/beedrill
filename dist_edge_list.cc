@@ -20,6 +20,23 @@ dist_edge_list::dump() const
     }
 }
 
+void
+dist_edge_list::verify_ids() const
+{
+    // Sequential
+    for (long i = 0; i < num_edges_; ++i) {
+        if (src_[i] >= num_vertices_) {
+	    LOG("ERROR: bad edge id: src[%lu] = %lu\n", i, src_[i]);
+	    exit(i);
+	}
+	else if (dst_[i] >= num_vertices_) {
+	    LOG("ERROR: bad edge id: dst[%lu] = %lu\n", i, dst_[i]);
+	    exit(i);
+	}
+    }
+
+}
+
 
 // Check if string has a given suffix
 // Adapted from https://stackoverflow.com/a/874160/2570605
