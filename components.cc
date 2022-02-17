@@ -8,6 +8,7 @@
 
 using namespace emu;
 using namespace emu::parallel;
+#define EDGE_GRAIN 10
 
 
 components::components(graph & g)
@@ -35,71 +36,176 @@ components::clear()
 {
 }
 
+void
+components::init_components() {
+	
+	for_each(fixed, g_->vertices_begin(), g_->vertices_end(), [this] (long v){
+		// Put each vertex in its own component
+		component_[v] = v;
+		// Set size of each component to zero
+		component_size_[v] = 0;
+       
+	});
+}
+
+void
+components::connect_components_remotemin() {
+
+    for_each(fixed, g_->vertices_begin(), g_->vertices_end(), [this] (long src) {
+		// long mytid = (long) ATOMIC_ADDMS(&vtid, 1);
+		// vstart[mytid] = CLOCK();
+		//ENABLE_WEAK_ORDERING();
+		long nedges = g_->out_degree(src);		
+		if (nedges > 0 && nedges < EDGE_GRAIN) {
+			for (auto e = g_->out_edges_begin(src); e < g_-> out_edges_end(src); e++) {
+				remote_min(&component_[e->dst], component_[src]);
+			}
+		} else if (nedges > 0 && nedges >= EDGE_GRAIN) {
+			// simulator says this is better, but no diff on HW
+			g_->for_each_out_edge(src, [&](long dst) {
+					
+				remote_min(&component_[dst], component_[src]);
+			});
+		}
+		//DISABLE_WEAK_ORDERING();
+		//vend[mytid] = CLOCK();
+		});
+}
+
+void
+components::tree_climb() {
+
+	g_->for_each_vertex(fixed, [this](long v) {
+	    	
+		// Merge connected components
+        while (component_[v] != component_[component_[v]]) {
+            component_[v] = component_[component_[v]];
+		}  
+    });
+	
+}
+
+void
+components::connect_components_migrate() {
+#if 0
+    // skk dyn policy no improvement
+	for_each(fixed, g_->vertices_begin(), g_->vertices_end(), [this] (long src) {
+			if (g_->out_degree(src)) {
+				// simulator says pulling out comp_src is better, but no diff on HW
+				g_->for_each_out_edge(src, [&](long dst) {
+						long &comp_src = component_[src];
+						long &comp_dst = component_[dst];
+						if (comp_dst < comp_src) {
+							comp_src = comp_dst;
+							changed_ = true;
+						} else if (comp_src < comp_dst) {
+							comp_dst = comp_src;
+							changed_ = true;
+						}
+					});
+			}
+       	});
+#endif
+#if 1
+	//lu_profile_perfcntr(PFC_CLEAR, (char*)"CLEARING before dyn loop");
+    //lu_profile_perfcntr(PFC_START, (char*)"STARTING before dyn loop");
+
+	//skk error c++2a extension
+	// for_each(fixed, g_->vertices_begin(), g_->vertices_end(), [=, *this] (long src) {
+	for_each(fixed, g_->vertices_begin(), g_->vertices_end(), [this] (long src) {
+	    long nedges = g_->out_degree(src);
+		if (nedges > 0 && nedges < EDGE_GRAIN) {
+			for (auto e = g_->out_edges_begin(src); e < g_-> out_edges_end(src); e++) {
+			   
+				long &comp_src = component_[src];
+				long &comp_dst = component_[e->dst];
+				if (comp_dst < comp_src) {
+					comp_src = comp_dst;
+					changed_ = true;
+				} else if (comp_src < comp_dst) {
+					comp_dst = comp_src;
+					changed_ = true;
+				}	
+			}
+		
+		} else if (nedges > 0 && nedges >= EDGE_GRAIN) {
+			
+		// simulator says this is better, but no diff on HW
+			g_->for_each_out_edge(src, [&](long dst) {
+				long &comp_src = component_[src];
+				long &comp_dst = component_[dst];
+				if (comp_dst < comp_src) {
+					comp_src = comp_dst;
+					changed_ = true;
+				} else if (comp_src < comp_dst) {
+					comp_dst = comp_src;
+					changed_ = true;
+				}
+			 });
+	    }
+    });
+
+	//lu_profile_perfcntr(PFC_STOP, (char*)"STOPPING after dyn loop");
+
+#endif
+}
+
+
 components::stats
 components::run()
 {
     volatile  uint64_t start, ticks;
 
+	
+	//-- Initialize components
     start = CLOCK();
-    for_each(fixed, g_->vertices_begin(), g_->vertices_end(), [this] (long v){
-        // Put each vertex in its own component
-        component_[v] = v;
-        // Set size of each component to zero
-        component_size_[v] = 0;
-       
-    });
+    this->init_components();
     ticks = CLOCK() - start;
     //skk LOG("Init components: %lu clock ticks\n", ticks);
     
-    long num_iters;
-    for (num_iters = 1; ; ++num_iters) {
-	//starttiming();
+    long num_iters = 1;
+
+
+#if 0
+	// -- Try initial pass with remote_min, then move to migrating pass
 	start = CLOCK();
-        changed_ = false;
-        // For all edges that connect vertices in different components...
-	// SKK If we only have one directional edges, need to assign both ways
+	this->connect_components_remotemin();
+	volatile uint64_t end = CLOCK();
+	ticks = end - start;
+	LOG("\nConnect components (iter %ld remote_min): %lu clock ticks (%ld %ld)\n",
+		num_iters, ticks, start, end);
 
-        // skk dyn policy no improvement
-	for_each(fixed, g_->vertices_begin(), g_->vertices_end(), [this] (long src) {
-	    if (g_->out_degree(src)) {
-		// simulator says this is better, but no diff on HW
-		g_->for_each_out_edge(src, [&](long dst) {
-		    long &comp_src = component_[src];
-		    long &comp_dst = component_[dst];
-		    if (comp_dst < comp_src) {
-			comp_src = comp_dst;
-			changed_ = true;
-		    } else if (comp_src < comp_dst) {
-			comp_dst = comp_src;
-			changed_ = true;
-		    }
-		});
-	    }
-       	});
-
+	start = CLOCK();
+	this->tree_climb();
 	ticks = CLOCK() - start;
-	LOG("\nConnect components (iter %lu): %lu clock ticks\n", num_iters, ticks);
+    //skk LOG("Tree climb: %lu clock ticks\n", ticks);
+	num_iters++;
+	
+#endif
+	
+	// Migrating components passes
+    for (; ; ++num_iters) {
+	
+		changed_ = false;
+
+		// For all edges that connect vertices in different components...
+		// SKK If we only have one directional edges, need to assign both ways
+			//starttiming();
+		start = CLOCK();
+		this->connect_components_migrate();
+		ticks = CLOCK() - start;
+		LOG("\nConnect components (iter %lu): %lu clock ticks\n", num_iters, ticks);
 
         // No changes? We're done!
-	start = CLOCK();
+		start = CLOCK();
         if (!repl_reduce(changed_, std::logical_or<>())) break;
-	ticks = CLOCK() - start;
-	//skk LOG("  Reduce changed: %lu clock ticks\n", ticks);
+		ticks = CLOCK() - start;
+		//skk LOG("  Reduce changed: %lu clock ticks\n", ticks);
 	
-	start = CLOCK();
-	// SKK try changing  from fixed to dynamic (dyn1)
-        g_->for_each_vertex(fixed, [this](long v) {
-	    	
-            // Merge connected components
-	    // Does this work if we have one directional edges?
-	    // I think so...
-            while (component_[v] != component_[component_[v]]) {
-                component_[v] = component_[component_[v]];
-            }
-          
-        });
-	ticks = CLOCK() - start;
-	//skk LOG("  Update components: %lu clock ticks\n", ticks);
+		start = CLOCK();
+		this->tree_climb();
+		ticks = CLOCK() - start;
+		//skk LOG("  Update components: %lu clock ticks\n", ticks);
 
     }
 

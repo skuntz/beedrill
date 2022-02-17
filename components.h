@@ -7,6 +7,10 @@ class components
 private:
     emu::repl<graph*> g_;
     worklist<graph::edge_type> worklist_;
+	void init_components();
+	void connect_components_remotemin();
+	void connect_components_migrate();
+	void tree_climb();
 public:
     // Component that this vertex belongs to
     emu::striped_array<long> component_;
