@@ -15,6 +15,7 @@ components::components(graph & g)
 : g_(&g)
 , worklist_(g.num_vertices())
 , component_(g.num_vertices())
+, prev_component_(g.num_vertices())
 , component_size_(g.num_vertices())
 , num_components_(g.num_vertices())
 , changed_(false)
@@ -26,6 +27,7 @@ components::components(const components& other, emu::shallow_copy shallow)
 : g_(other.g_)
 , worklist_(other.worklist_, shallow)
 , component_(other.component_, shallow)
+, prev_component_(other.prev_component_, shallow)
 , component_size_(other.component_size_, shallow)
 , num_components_(other.num_components_)
 , changed_(other.changed_)
@@ -42,6 +44,7 @@ components::init_components() {
 	for_each(fixed, g_->vertices_begin(), g_->vertices_end(), [this] (long v){
 		// Put each vertex in its own component
 		component_[v] = v;
+		prev_component_[v] = v;
 		// Set size of each component to zero
 		component_size_[v] = 0;
        
@@ -73,15 +76,37 @@ components::connect_components_remotemin() {
 }
 
 void
-components::tree_climb() {
-
+components::check_changed() {
 	g_->for_each_vertex(fixed, [this](long v) {
-	    	
-		// Merge connected components
-        while (component_[v] != component_[component_[v]]) {
-            component_[v] = component_[component_[v]];
-		}  
-    });
+
+			if (component_[v] != prev_component_[v]) {
+				//prev_component_[v] = component_[v];
+				changed_ = true;
+			}
+		});
+}
+void
+components::update_prev_comp() {
+	g_->for_each_vertex(fixed, [this](long v) {
+
+			if (component_[v] != prev_component_[v]) {
+				prev_component_[v] = component_[v];
+			}
+		});
+}
+
+
+		
+
+void
+components::tree_climb() {
+	
+	g_->for_each_vertex(fixed, [this](long v) {
+			// Merge connected components
+			while (component_[v] != component_[component_[v]]) {
+				component_[v] = component_[component_[v]];
+			}
+	    });
 	
 }
 
@@ -187,10 +212,9 @@ components::run()
     for (; ; ++num_iters) {
 	
 		changed_ = false;
-
+#if 0  // Migrating
 		// For all edges that connect vertices in different components...
-		// SKK If we only have one directional edges, need to assign both ways
-			//starttiming();
+	
 		start = CLOCK();
 		this->connect_components_migrate();
 		ticks = CLOCK() - start;
@@ -206,6 +230,39 @@ components::run()
 		this->tree_climb();
 		ticks = CLOCK() - start;
 		//skk LOG("  Update components: %lu clock ticks\n", ticks);
+#else  // Remote min only
+	// For all edges that connect vertices in different components...
+	
+		start = CLOCK();
+		this->connect_components_remotemin();
+		ticks = CLOCK() - start;
+		LOG("\nConnect components (iter %lu): %lu clock ticks\n", num_iters, ticks);
+
+		// Check if changed
+		start = CLOCK();
+        this->check_changed();
+		ticks = CLOCK() - start;
+		LOG("  Check changed: %lu clock ticks\n", ticks);
+		
+		// No changes? We're done!
+		start = CLOCK();
+        if (!repl_reduce(changed_, std::logical_or<>())) break;
+		ticks = CLOCK() - start;
+		//skk LOG("  Reduce changed: %lu clock ticks\n", ticks);
+		
+		start = CLOCK();
+		this->tree_climb();
+		ticks = CLOCK() - start;
+		LOG("  Update components (tree climb): %lu clock ticks\n", ticks);
+
+		// Update prev component array
+		start = CLOCK();
+        this->update_prev_comp();
+		ticks = CLOCK() - start;
+		LOG("  Update prev component array: %lu clock ticks\n", ticks);
+	
+		
+#endif
 
     }
 

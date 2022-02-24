@@ -10,10 +10,14 @@ private:
 	void init_components();
 	void connect_components_remotemin();
 	void connect_components_migrate();
+	void check_changed();
+	void update_prev_comp();
 	void tree_climb();
 public:
     // Component that this vertex belongs to
     emu::striped_array<long> component_;
+	// Previous component to track changes
+    emu::striped_array<long> prev_component_;
     // Size of each component
     emu::striped_array<long> component_size_;
     // Number of components
