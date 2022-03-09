@@ -379,7 +379,7 @@ create_graph_from_edge_list(dist_edge_list & dist_el)
 		exit(dst);
 	    }
         emu::remote_add(&g->vertex_out_degree_[src], 1);
-        //emu::remote_add(&g->vertex_out_degree_[dst], 1);
+        emu::remote_add(&g->vertex_out_degree_[dst], 1);
     });
     cilk_sync;
     hooks_region_end(); 
@@ -401,7 +401,7 @@ create_graph_from_edge_list(dist_edge_list & dist_el)
         [](long lhs, long rhs) { return std::max(lhs, rhs); });
     // Double-check that we haven't lost any edges
     // SKK For connected components, we will only represent edges once
-    assert(g->num_edges_ ==
+    assert(g->num_edges_ * 2 ==
            emu::repl_reduce(g->num_local_edges_, std::plus<>()));
     LOG("max_edges_per_nodelet: %lu\n", max_edges_per_nodelet);
     LOG("sizeof(long): %lu\n", sizeof(long)); 
@@ -454,7 +454,7 @@ create_graph_from_edge_list(dist_edge_list & dist_el)
     dist_el.forall_edges([g] (long src, long dst) {
         // Insert both ways for undirected graph
         g->insert_edge(src, dst);
-        //g->insert_edge(dst, src); // Don't insert both ways for cc
+        g->insert_edge(dst, src); // Don't insert both ways for cc
     });
     hooks_region_end(); 
 
